@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Set Location — FixMyCity{% endblock %}
+{% block body_class %}flex flex-col h-screen overflow-hidden relative{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block content %}
+  <!-- Top Nav -->
+  <nav class="absolute top-0 w-full z-40 bg-gray-900 border-b border-gray-800">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="{% url 'citizen_dashboard' %}" class="text-gray-400 hover:text-white">Back</a>
+        <h1 class="text-sm font-bold text-white">Report Issue: Set Location</h1>
+      </div>
+      <div class="text-sm font-bold text-green-500">Points: {{ user.civic_points }}</div>
+    </div>
+  </nav>
+
+  <!-- Map View -->
+  <div class="flex-1 flex pt-16 relative h-full">
+    <div id="map" class="absolute inset-0 z-0"></div>
+
+    <!-- Floating Card -->
+    <div class="relative z-10 w-full h-full flex items-end sm:items-center justify-center p-6 pointer-events-none">
+      <div class="w-full sm:max-w-md bg-gray-800 rounded-lg p-6 border border-gray-700 pointer-events-auto">
+        <h2 class="text-2xl font-bold text-white mb-4">Where's the problem?</h2>
+
+        <!-- Search -->
+        <div class="relative mb-4">
+          <input type="text" id="searchInput" placeholder="Search address..." class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3" oninput="handleSearch(this.value)">
+          <div id="suggestions" class="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded hidden max-h-60 overflow-y-auto z-50"></div>
+        </div>
+
+        <p class="text-center text-gray-500 mb-4">or</p>
+
+        <!-- GPS Button -->
+        <button id="gpsBtn" onclick="useGPS()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded py-3 mb-4">
+          Use Current Location
+        </button>
+
+        <!-- Success -->
+        <div id="gpsSuccess" class="hidden bg-green-900 border border-green-700 rounded-lg p-4 mb-4">
+          <p id="successTitle" class="font-bold text-green-400">Location Locked</p>
+          <p id="successSub" class="text-sm text-green-200"></p>
+        </div>
+
+        <a id="continueBtn" href="#" class="w-full hidden bg-white text-gray-900 font-bold rounded py-3 text-center block hover:bg-gray-200">
+          Continue →
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  var map, marker;
+  var searchTimer = null;
+
+  window.addEventListener('load', function() {
+    map = L.map('map', { zoomControl: false }).setView([10.5276, 76.2144], 13);
+    // Using CartoDB dark tiles (free, no API key, works on localhost)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      maxZoom: 19
+    }).addTo(map);
+  });
+
+  function useGPS() {
+    var btn = document.getElementById('gpsBtn');
+    btn.innerHTML = 'Acquiring Signal...';
+    btn.disabled = true;
+
+    if (!navigator.geolocation) {
+      alert('GPS is not supported on this device.');
+      btn.innerHTML = 'Use Current Location';
+      btn.disabled = false;
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        var lat = position.coords.latitude;
+        var lng = position.coords.longitude;
+        lockLocation(lat, lng, 'GPS Location Locked', lat.toFixed(4) + ', ' + lng.toFixed(4));
+        btn.innerHTML = '✓ Location Locked';
+        btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        btn.classList.add('bg-green-600');
+      },
+      function(error) {
+        alert('Could not get your location. Try the search bar.');
+        btn.innerHTML = 'Use Current Location';
+        btn.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  function handleSearch(val) {
+    if (searchTimer) clearTimeout(searchTimer);
+    var sugBox = document.getElementById('suggestions');
+
+    if (val.length < 3) {
+      sugBox.classList.add('hidden');
+      return;
+    }
+
+    searchTimer = setTimeout(function() {
+      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(val + ', Kerala') + '&limit=5')
+      .then(function(r) { return r.json(); })
+      .then(function(results) {
+        if (results.length === 0) {
+          sugBox.innerHTML = '<div class="p-3 text-sm text-gray-400">No results</div>';
+          sugBox.classList.remove('hidden');
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < results.length; i++) {
+          var r = results[i];
+          var name = r.display_name.substring(0, 50).replace(/'/g, "\\'");
+          html += '<button onclick="selectPlace(\'' + name + '\',' + r.lat + ',' + r.lon + ')" class="w-full text-left p-3 hover:bg-gray-600 border-b border-gray-600 text-sm text-white">' + r.display_name.substring(0, 60) + '</button>';
+        }
+        sugBox.innerHTML = html;
+        sugBox.classList.remove('hidden');
+      })
+      .catch(function() {
+        sugBox.innerHTML = '<div class="p-3 text-sm text-gray-400">Search failed</div>';
+        sugBox.classList.remove('hidden');
+      });
+    }, 500);
+  }
+
+  function selectPlace(name, lat, lng) {
+    document.getElementById('searchInput').value = name;
+    document.getElementById('suggestions').classList.add('hidden');
+    lockLocation(parseFloat(lat), parseFloat(lng), 'Location set from search', name);
+  }
+
+  function lockLocation(lat, lng, title, subtitle) {
+    document.getElementById('successTitle').textContent = title;
+    document.getElementById('successSub').textContent = subtitle;
+    document.getElementById('gpsSuccess').classList.remove('hidden');
+
+    var continueBtn = document.getElementById('continueBtn');
+    continueBtn.href = '{% url "intake_form" %}?lat=' + lat + '&lng=' + lng;
+    continueBtn.classList.remove('hidden');
+
+    map.setView([lat, lng], 16);
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([lat, lng]).addTo(map);
+
+    fetch('/api/check-nearby/?lat=' + lat + '&lng=' + lng)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.count > 0) {
+        if (!confirm('We found ' + data.count + ' issue(s) near here. Continue anyway?')) {
+          window.location.href = '{% url "community_feed" %}';
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

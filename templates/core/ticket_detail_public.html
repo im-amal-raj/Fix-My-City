@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ ticket.title }} — FixMyCity{% endblock %}
+
+{% block content %}
+  <nav class="sticky top-0 z-40 bg-gray-800 text-white bg-gray-900/80  border-b border-gray-200 border-white/5 transition-colors duration-300">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="{% url 'community_feed' %}" class="p-2 -ml-2 rounded-full hover:bg-gray-100 hover:bg-gray-700 transition-colors text-gray-500">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        </a>
+        <h1 class="text-sm font-bold tracking-tight">Ticket #{{ ticket.id }}</h1>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+    <!-- Status Banner -->
+    <div class="mb-6">
+      {% if ticket.status == 'RESOLVED' %}
+      <div class="bg-emerald-50 bg-emerald-500/10 border border-emerald-100 border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <div>
+          <p class="font-bold text-emerald-900 text-emerald-300 text-sm">Issue Resolved</p>
+          <p class="text-xs text-emerald-700 text-emerald-400/80">This issue has been fixed by the city team.</p>
+        </div>
+      </div>
+      {% elif ticket.status == 'IN_PROGRESS' %}
+      <div class="bg-amber-50 bg-amber-500/10 border border-amber-100 border-amber-500/20 rounded-2xl p-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">🚧</div>
+        <div>
+          <p class="font-bold text-amber-900 text-amber-300 text-sm">Work In Progress</p>
+          <p class="text-xs text-amber-700 text-amber-400/80">A field worker has been assigned and is working on this issue.</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-6">
+      <!-- Left: Photos -->
+      <div class="lg:w-1/2 flex flex-col gap-4">
+        <!-- Before Photo -->
+        <div class="bg-gray-800 text-white bg-gray-800 rounded-3xl p-4 simple-card border border-gray-100 border-white/5">
+          <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">📸 Before</h3>
+          <div class="h-64 bg-gray-200 bg-gray-700 rounded-2xl overflow-hidden flex justify-center items-center text-6xl">
+            {% if ticket.issue_photo %}
+            <img src="{{ ticket.issue_photo.url }}" alt="Before" class="w-full h-full object-cover">
+            {% else %}🕳️{% endif %}
+          </div>
+        </div>
+
+        <!-- After Photo (only if resolved) -->
+        {% if ticket.status == 'RESOLVED' and ticket.resolution_photo %}
+        <div class="bg-gray-800 text-white bg-gray-800 rounded-3xl p-4 simple-card border border-gray-100 border-white/5">
+          <h3 class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-3">✅ After</h3>
+          <div class="h-64 bg-gray-200 bg-gray-700 rounded-2xl overflow-hidden">
+            <img src="{{ ticket.resolution_photo.url }}" alt="After" class="w-full h-full object-cover">
+          </div>
+          {% if ticket.worker_note %}
+          <p class="text-xs text-gray-500 mt-3 font-medium italic">"{{ ticket.worker_note }}"</p>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Right: Details -->
+      <div class="lg:w-1/2 flex flex-col gap-4">
+        <div class="bg-gray-800 text-white bg-gray-800 rounded-3xl p-6 simple-card border border-gray-100 border-white/5">
+          <span class="bg-gray-100 bg-gray-700 text-gray-600 text-gray-300 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border border-gray-200 border-white/10">{{ ticket.get_category_display }}</span>
+          <h2 class="text-2xl font-extrabold tracking-tight mt-3 mb-2">{{ ticket.title }}</h2>
+
+          {% if ticket.ai_formal_summary %}
+          <div class="bg-brand-50 bg-brand-500/10 border border-brand-100 border-white/5 rounded-xl p-4 mb-4">
+            <p class="text-[10px] font-bold text-brand-600 text-brand-400 uppercase tracking-widest mb-1">Summary</p>
+            <p class="text-sm text-gray-700 text-gray-300 font-medium leading-relaxed">"{{ ticket.ai_formal_summary }}"</p>
+          </div>
+          {% endif %}
+
+          <p class="text-sm text-gray-500 text-gray-400 mb-4 italic">"{{ ticket.description }}"</p>
+
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div><span class="font-bold text-gray-400 uppercase tracking-widest">Reported by</span><p class="font-semibold mt-0.5">{{ ticket.get_display_reporter }}</p></div>
+            <div><span class="font-bold text-gray-400 uppercase tracking-widest">Location</span><p class="font-semibold mt-0.5">{{ ticket.landmark_note|default:"—" }}</p></div>
+            <div><span class="font-bold text-gray-400 uppercase tracking-widest">Ward</span><p class="font-semibold mt-0.5">{{ ticket.ward_name|default:"Unknown" }}</p></div>
+            <div><span class="font-bold text-gray-400 uppercase tracking-widest">Reported</span><p class="font-semibold mt-0.5">{{ ticket.created_at|timesince }} ago</p></div>
+          </div>
+        </div>
+
+        <!-- Follow Button -->
+        {% if not is_following %}
+        <a href="{% url 'follow_ticket' ticket.id %}" class="bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl px-6 py-4 transition-all active:scale-[0.98] shadow-lg shadow-brand-500/30 flex justify-center items-center gap-2 text-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+          Me Too / Follow (+1 Civic Point)
+        </a>
+        {% else %}
+        <div class="bg-gray-100 bg-gray-700 text-gray-500 font-bold rounded-2xl px-6 py-4 flex justify-center items-center gap-2 text-sm">
+          ✓ You are following this issue
+        </div>
+        {% endif %}
+
+        <p class="text-center text-xs text-gray-400 font-semibold">{{ ticket.followers.count }} people following this issue</p>
+      </div>
+    </div>
+  </div>
+{% endblock %}

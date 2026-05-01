@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ticket Submitted - FixMyCity{% endblock %}
+
+{% block body_class %}bg-gray-900 flex flex-col min-h-screen{% endblock %}
+
+{% block content %}
+  <nav class="border-b border-gray-700 bg-gray-800">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-sm font-bold text-white">FixMyCity</h1>
+      </div>
+      <a href="{% url 'citizen_dashboard' %}" class="text-blue-500 hover:text-blue-400 font-medium text-sm">Dashboard</a>
+    </div>
+  </nav>
+
+  <div class="flex-1 flex items-center justify-center p-4">
+    <div class="simple-card w-full max-w-md text-center">
+      <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      
+      <h2 class="text-2xl font-bold text-white mb-2">Ticket Submitted!</h2>
+      <p class="text-gray-400 mb-6">Your issue has been successfully reported to the authorities.</p>
+      
+      <div class="bg-gray-800 p-4 rounded-lg mb-6 text-left border border-gray-700">
+        <p class="text-sm text-gray-400 mb-1">Ticket Reference ID:</p>
+        <p class="text-lg font-mono text-white">#{{ ticket_id }}</p>
+      </div>
+      
+      <a href="{% url 'citizen_dashboard' %}?tab=myward" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition-colors">
+        View My Tickets
+      </a>
+    </div>
+  </div>
+{% endblock %}

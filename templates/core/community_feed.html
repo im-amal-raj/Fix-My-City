@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Community Feed — FixMyCity{% endblock %}
+
+{% block extra_css %}
+<style>
+.pb-safe { padding-bottom: calc(85px + env(safe-area-inset-bottom)); }
+</style>
+{% endblock %}
+
+{% block content %}
+  <nav class="sticky top-0 z-40 bg-gray-800 text-white bg-gray-900/80  border-b border-gray-200 border-white/5 transition-colors duration-300">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="{% url 'citizen_dashboard' %}" class="p-2 -ml-2 rounded-full hover:bg-gray-100 hover:bg-gray-700 transition-colors text-gray-500">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        </a>
+        <h1 class="text-sm font-bold tracking-tight">Community Feed</h1>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+    <!-- Search Bar -->
+    <form method="GET" class="mb-8">
+      {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+      {% if current_ward %}<input type="hidden" name="ward" value="{{ current_ward }}">{% endif %}
+      <div class="relative">
+        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search by title, category, or landmark..."
+               class="w-full bg-gray-800 text-white bg-gray-800 border border-gray-200 border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-sm simple-input placeholder-gray-400">
+      </div>
+      
+      {% if current_status or current_ward %}
+      <div class="mt-3 flex items-center gap-2">
+        <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Active Filters:</span>
+        {% if current_status %}
+          <span class="bg-gray-100 bg-gray-700 text-gray-700 text-gray-300 text-[10px] font-bold px-2 py-1 rounded-md">{{ current_status }}</span>
+        {% endif %}
+        {% if current_ward %}
+          <span class="bg-gray-100 bg-gray-700 text-gray-700 text-gray-300 text-[10px] font-bold px-2 py-1 rounded-md">Ward: {{ current_ward }}</span>
+        {% endif %}
+        <a href="{% url 'community_feed' %}" class="text-xs text-brand-500 hover:text-brand-600 font-semibold ml-2">Clear All</a>
+      </div>
+      {% endif %}
+    </form>
+
+    <!-- Tickets Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {% for ticket in tickets %}
+      <a href="{% url 'ticket_detail_public' ticket.id %}" class="bg-gray-800 text-white bg-gray-800 border border-gray-100 border-white/5 rounded-3xl overflow-hidden simple-card flex flex-col relative group cursor-pointer">
+
+        <!-- Status Badge -->
+        <div class="absolute top-4 right-4 z-10">
+          {% if ticket.status == 'RESOLVED' %}
+          <span class="bg-emerald-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/30">Resolved</span>
+          {% elif ticket.status == 'IN_PROGRESS' %}
+          <span class="bg-amber-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-amber-500/30">In Progress</span>
+          {% else %}
+          <span class="bg-brand-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-brand-500/30">Validated</span>
+          {% endif %}
+        </div>
+
+        <!-- Photo -->
+        <div class="h-36 bg-gray-200 bg-gray-700 relative overflow-hidden group-hover:opacity-90 transition-opacity flex justify-center items-center text-4xl">
+          {% if ticket.issue_photo %}
+          <img src="{{ ticket.issue_photo.url }}" alt="Photo" class="w-full h-full object-cover">
+          {% else %}🕳️{% endif %}
+        </div>
+
+        <div class="p-5 flex-1 flex flex-col">
+          <span class="bg-gray-100 bg-gray-700 text-gray-600 text-gray-300 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-widest border border-gray-200 border-white/10 w-fit mb-2">{{ ticket.get_category_display }}</span>
+          <h3 class="font-bold text-base leading-tight mb-2 group-hover:text-brand-500 transition-colors">{{ ticket.title }}</h3>
+          <p class="text-xs text-gray-500 text-gray-400 font-medium line-clamp-2 mb-3">{{ ticket.ai_formal_summary|default:ticket.description|truncatewords:20 }}</p>
+
+          <div class="mt-auto pt-3 border-t border-gray-100 border-white/5 flex items-center justify-between text-xs text-gray-400 font-semibold">
+            <span>{{ ticket.get_display_reporter }}</span>
+            <span class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              {{ ticket.followers.count }} following
+            </span>
+          </div>
+        </div>
+      </a>
+      {% empty %}
+      <div class="col-span-full text-center py-16 text-gray-400">
+        <p class="text-lg font-bold mb-2">No issues found</p>
+        <p class="text-sm">{% if search_query %}Try a different search term.{% else %}No public issues have been posted yet.{% endif %}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

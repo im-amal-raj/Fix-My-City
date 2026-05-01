@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Tasks — FixMyCity{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* Leaflet overrides for dark mode */
+    .dark .leaflet-layer,
+    .dark .leaflet-control-zoom-in,
+    .dark .leaflet-control-zoom-out,
+    .dark .leaflet-control-attribution { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+    .pb-safe { padding-bottom: calc(85px + env(safe-area-inset-bottom)); }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <nav class="sticky top-0 z-40 bg-gray-800 text-white bg-gray-900/80  border-b border-gray-200 border-white/5 transition-colors duration-300">
+    <div class="px-4 h-16 flex items-center justify-between max-w-3xl mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+          {{ user.first_name|make_list|first }}{{ user.last_name|make_list|first }}
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-tight leading-tight">{{ user.first_name }} {{ user.last_name }}</h1>
+          <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Field Worker</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-4">
+        <a href="{% url 'password_change' %}" class="text-xs font-bold text-gray-500 hover:text-gray-400 uppercase tracking-widest transition-colors mr-3">Security</a>
+        <a href="{% url 'logout' %}" class="text-xs font-bold text-red-500 hover:text-red-600 hover:text-red-400 uppercase tracking-widest transition-colors">Sign Out</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-3xl mx-auto px-4 py-6 pb-safe">
+
+    <!-- Next Location Map Overview -->
+    {% if next_task %}
+    <div class="bg-gray-800 text-white bg-gray-800 rounded-3xl overflow-hidden simple-card border border-gray-100 border-white/5 mb-6">
+      <div class="h-40 relative flex items-center justify-center border-b border-gray-100 border-white/5">
+        <div id="map" class="absolute inset-0 z-0"></div>
+      </div>
+      <div class="p-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-1">Current Stop</h2>
+          <p class="font-bold">{{ next_task.title }}</p>
+        </div>
+        <a href="{% url 'worker_resolve' next_task.id %}" class="bg-gray-900 bg-gray-800 text-white text-white text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-transform active:scale-95 shadow-lg">Start Job</a>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="flex items-center justify-between mb-4 mt-8 px-1">
+      <div class="flex items-center gap-2">
+        <h3 class="text-sm font-extrabold text-gray-400 uppercase tracking-widest">Today's Route</h3>
+      </div>
+      <span class="text-xs font-bold bg-brand-50 bg-brand-500/10 text-brand-600 text-brand-400 px-2 py-0.5 rounded-md">{{ tasks|length }} Stops</span>
+    </div>
+
+    <!-- Job Queue -->
+    <div class="space-y-4">
+      {% for task in tasks %}
+      <a href="{% url 'worker_resolve' task.id %}" class="block bg-gray-800 text-white bg-gray-800 border {% if forloop.first %}border-brand-200 border-brand-500/30{% else %}border-gray-100 border-white/5{% endif %} rounded-2xl p-4 simple-card cursor-pointer relative overflow-hidden {% if not forloop.first %}opacity-80{% endif %}">
+        {% if forloop.first %}
+        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500"></div>
+        {% endif %}
+        <div class="{% if forloop.first %}ml-2{% endif %} flex items-center gap-4">
+          <div class="w-12 h-12 bg-gray-100 bg-gray-700 rounded-xl flex items-center justify-center text-xl shrink-0">
+            {% if task.category == 'ROAD' %}🕳️{% elif task.category == 'ELECTRICAL' %}💡{% elif task.category == 'WATER' %}💧{% else %}📋{% endif %}
+          </div>
+          <div class="flex-1">
+            <h4 class="font-bold text-sm tracking-tight mb-0.5">{{ task.title }}</h4>
+            <p class="text-xs text-gray-500 text-gray-400 font-medium">{{ task.ward_name|default:"Unknown ward" }}</p>
+          </div>
+          <div class="text-right">
+            <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</span>
+            <span class="{% if task.priority_score >= 8 %}text-red-500{% elif task.priority_score >= 5 %}text-amber-500{% else %}text-gray-500{% endif %} font-black text-sm">
+              {% if task.priority_score >= 8 %}Critical{% elif task.priority_score >= 5 %}High{% else %}Normal{% endif %}
+            </span>
+          </div>
+        </div>
+      </a>
+      {% empty %}
+      <div class="text-center py-16 text-gray-400">
+        <p class="text-lg font-bold mb-2">No tasks assigned</p>
+        <p class="text-sm">You're all caught up! Check back later.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    
+    if(lbl) lbl.style.display = 'none';
+    if(pill) { pill.style.padding = '0'; pill.style.background = 'none'; pill.style.border = 'none'; pill.style.boxShadow = 'none'; }
+  });
+
+  window.addEventListener('load', () => {
+    {% if next_task %}
+    // Map Init
+    const lat = {{ next_task.latitude|default:"10.5236" }};
+    const lng = {{ next_task.longitude|default:"76.2144" }};
+    const map = L.map('map', { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView([lat, lng], 14);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      maxZoom: 19
+    }).addTo(map);
+
+    const startPoint = [lat, lng];
+    const endPoint = [lat + 0.005, lng + 0.005]; // Dummy route offset for visual
+    
+    const customIcon = L.divIcon({
+      className: 'bg-brand-500 rounded-full border-2 border-white shadow-md',
+      iconSize: [20, 20]
+    });
+    const customIcon2 = L.divIcon({
+      className: 'bg-gray-400 rounded-full border-2 border-white shadow-md',
+      iconSize: [20, 20]
+    });
+
+    L.marker(startPoint, {icon: customIcon}).addTo(map);
+    L.marker(endPoint, {icon: customIcon2}).addTo(map);
+
+    L.polyline([startPoint, endPoint], {
+      color: '#2b91ff',
+      weight: 3,
+      dashArray: '6, 6'
+    }).addTo(map);
+    
+    map.fitBounds([startPoint, endPoint], { padding: [20, 20] });
+    {% endif %}
+  });
+</script>
+{% endblock %}

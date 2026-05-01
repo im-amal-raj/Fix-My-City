@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Department Tracker — FixMyCity{% endblock %}
+{% block body_class %}flex flex-col{% endblock %}
+
+{% block content %}
+  <nav class="sticky top-0 z-40 bg-gray-800 text-white bg-gray-900/80  border-b border-gray-200 border-white/5 transition-colors duration-300">
+    <div class="px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gray-900 bg-gray-800 text-white text-white text-white flex items-center justify-center font-bold text-xs shadow-sm">
+          {{ user.first_name|make_list|first }}{{ user.last_name|make_list|first }}
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-tight leading-tight">{{ user.first_name }} {{ user.last_name }}</h1>
+          <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Triage Officer</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-4">
+        <a href="{% url 'officer_triage' %}" class="hidden sm:flex text-xs font-bold text-gray-500 hover:text-white hover:text-white uppercase tracking-widest transition-colors">Triage Queue</a>
+        <a href="{% url 'password_change' %}" class="text-xs font-bold text-gray-500 hover:text-gray-400 uppercase tracking-widest transition-colors mr-3">Security</a>
+        <a href="{% url 'logout' %}" class="text-xs font-bold text-red-500 hover:text-red-600 hover:text-red-400 uppercase tracking-widest transition-colors">Sign Out</a>
+      </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full flex-1">
+
+    <!-- Sidebar -->
+    <div class="hidden lg:flex lg:col-span-3 flex-col space-y-6">
+      <nav class="space-y-2">
+        <a href="{% url 'officer_triage' %}" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium hover:bg-gray-100 hover:bg-gray-800 transition-colors text-gray-600 text-gray-400">
+          <div class="flex items-center gap-3"><span class="text-lg">🎯</span> Priorities</div>
+          <span class="bg-gray-200 bg-gray-700 text-gray-600 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{{ pending_count }}</span>
+        </a>
+        <a href="{% url 'officer_active_work' %}" class="nav-btn active w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-colors">
+          <span class="text-lg">📊</span> Department Tracker
+        </a>
+
+      </nav>
+
+      <div class="mt-8">
+        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 pl-1">Department Stats</h3>
+        <div class="bg-gray-800 text-white bg-gray-800 rounded-2xl p-5 border border-gray-100 border-white/5 simple-card space-y-4">
+          <div class="flex justify-between items-center text-sm font-medium">
+            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-brand-500"></span> Open</span>
+            <span>{{ open_count }}</span>
+          </div>
+          <div class="flex justify-between items-center text-sm font-medium">
+            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 status-dot ml-1 mr-1"></span> In Progress</span>
+            <span>{{ in_progress_count }}</span>
+          </div>
+          <div class="flex justify-between items-center text-sm font-medium opacity-50">
+            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Closed This Week</span>
+            <span>{{ closed_count }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="lg:col-span-9 flex flex-col">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 shrink-0">
+        <div>
+          <h2 class="text-2xl font-extrabold tracking-tight mb-1">Active Work</h2>
+          <p class="text-sm text-gray-500 text-gray-400 font-medium">Tracking assigned field workers.</p>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+        {% for ticket in active_tickets %}
+        <div class="bg-gray-800 text-white bg-gray-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 simple-card border {% if not ticket.assigned_worker %}border-red-100 border-red-500/20 bg-gradient-to-r from-red-50/50 to-transparent from-red-500/5{% else %}border-gray-100 border-white/5{% endif %} cursor-pointer hover:border-brand-300 hover:border-brand-500/50 transition-colors">
+          <div class="flex items-center gap-4 border-b sm:border-0 border-gray-100 border-white/5 pb-4 sm:pb-0">
+            <div class="w-12 h-12 {% if not ticket.assigned_worker %}bg-red-50 bg-red-500/10 text-red-500{% else %}bg-amber-50 bg-amber-500/10 text-amber-500{% endif %} rounded-xl flex items-center justify-center shrink-0 relative">
+              {% if ticket.category == 'ROAD' %}🕳️{% elif ticket.category == 'WATER' %}💧{% elif ticket.category == 'ELECTRICAL' %}💡{% else %}📋{% endif %}
+              {% if ticket.status == 'IN_PROGRESS' %}
+              <div class="absolute -top-1 -right-1 status-dot border border-white border-surface-900 bg-amber-500 text-amber-500"></div>
+              {% endif %}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest bg-gray-100 bg-gray-700 px-2 py-0.5 rounded">#{{ ticket.id }}</span>
+                <span class="text-[10px] font-bold {% if ticket.status == 'IN_PROGRESS' %}text-amber-500{% elif not ticket.assigned_worker %}text-red-500{% else %}text-brand-500{% endif %} uppercase tracking-widest">{{ ticket.get_status_display }}</span>
+              </div>
+              <h3 class="font-bold text-base leading-tight">{{ ticket.title }}</h3>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between sm:justify-end gap-6 sm:w-[40%]">
+            {% if ticket.assigned_worker %}
+            <div class="text-left w-1/2">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Assigned To</p>
+              <div class="flex items-center gap-2 text-sm font-semibold">
+                <div class="w-6 h-6 rounded-full bg-brand-500 text-white flex justify-center items-center text-[10px]">
+                  {{ ticket.assigned_worker.first_name|make_list|first }}{{ ticket.assigned_worker.last_name|make_list|first }}
+                </div>
+                {{ ticket.assigned_worker.first_name }} {{ ticket.assigned_worker.last_name|truncatechars:2 }}
+              </div>
+            </div>
+            {% else %}
+            <div class="text-left w-1/2">
+              <a href="{% url 'officer_ticket_detail' ticket.id %}" class="bg-red-100 bg-red-500/20 text-red-600 text-red-400 font-bold text-xs px-3 py-1.5 rounded-lg w-full block text-center hover:bg-red-200 hover:bg-red-500/30 transition-colors">Assign Now</a>
+            </div>
+            {% endif %}
+            <div class="text-right w-1/2">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Time Elapsed</p>
+              <p class="text-sm font-semibold text-gray-700 text-gray-300">{{ ticket.created_at|timesince }}</p>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-16 text-gray-400">
+          <p class="text-lg font-bold mb-2">No active work</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Issue Details — FixMyCity{% endblock %}
+
+{% block content %}
+  <!-- Top Nav -->
+  <nav class="bg-gray-800 border-b border-gray-700">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
+      <a href="{% url 'report_location' %}" class="text-gray-400 hover:text-white">Back</a>
+      <h1 class="text-sm font-bold text-white">Report Issue: Details</h1>
+    </div>
+  </nav>
+
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <form id="intakeForm" enctype="multipart/form-data" class="space-y-6">
+      {% csrf_token %}
+      <input type="hidden" name="latitude" value="{{ latitude }}">
+      <input type="hidden" name="longitude" value="{{ longitude }}">
+      
+      <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        
+        <!-- Category Dropdown -->
+        <div class="mb-4">
+          <label class="block text-sm font-bold text-gray-300 mb-1">Category</label>
+          <select name="category" required class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white">
+            <option value="">Select Category...</option>
+            <option value="ROAD">Pothole / Road</option>
+            <option value="ELECTRICAL">Streetlight / Electrical</option>
+            <option value="WASTE">Garbage / Waste</option>
+            <option value="WATER">Water Pipe</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+
+        <!-- Location Dropdowns (Replaces Shapely) -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-bold text-gray-300 mb-1">Panchayat / City</label>
+            <input type="text" name="panchayat_name" required placeholder="e.g. Kozhikode Corp" class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-300 mb-1">Ward Name / No.</label>
+            <input type="text" name="ward_name" required placeholder="e.g. Ward 12" class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white">
+          </div>
+        </div>
+
+        <!-- Title -->
+        <div class="mb-4">
+          <label class="block text-sm font-bold text-gray-300 mb-1">Title</label>
+          <input type="text" name="title" required placeholder="e.g. Deep pothole on MG Road" class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white">
+        </div>
+
+        <!-- Description -->
+        <div class="mb-4">
+          <label class="block text-sm font-bold text-gray-300 mb-1">Description</label>
+          <textarea name="description" required placeholder="Describe the issue..." class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white h-24"></textarea>
+        </div>
+
+        <!-- Landmark -->
+        <div class="mb-4">
+          <label class="block text-sm font-bold text-gray-300 mb-1">Landmark Note</label>
+          <input type="text" name="landmark_note" placeholder="e.g. Near State Bank" class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white">
+        </div>
+
+        <!-- Photo -->
+        <div class="mb-6">
+          <label class="block text-sm font-bold text-gray-300 mb-1">Upload Photo</label>
+          <input type="file" name="issue_photo" accept="image/*" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-gray-300">
+        </div>
+
+        <!-- Post Anonymously -->
+        <div class="mb-6 flex items-center gap-2">
+          <input type="checkbox" name="is_pseudonymous" id="anon" class="w-4 h-4">
+          <label for="anon" class="text-sm text-gray-300 font-bold">Post Anonymously</label>
+        </div>
+
+        {% if can_submit %}
+        <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded p-4">
+          Submit Report (-5 Points)
+        </button>
+        {% else %}
+        <div class="w-full bg-gray-600 text-gray-300 font-bold rounded p-4 text-center">
+          Insufficient Civic Points ({{ civic_points }}/5)
+        </div>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('intakeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    if (btn) btn.disabled = true;
+
+    const formData = new FormData(this);
+
+    fetch('{% url "api_submit_ticket" %}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        window.location.href = '{% url "citizen_tracker" %}?ticket_id=' + data.ticket_id;
+      } else if (data.status === 'duplicate_warning') {
+        if (confirm('A similar issue was found nearby: "' + data.existing_title + '" (' + data.distance_m + 'm away). Follow it instead?')) {
+          window.location.href = '/ticket/' + data.existing_ticket_id + '/follow/';
+        } else {
+          // Force submit
+          formData.append('force_override', 'true');
+          fetch('{% url "api_submit_ticket" %}', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+          })
+          .then(r => r.json())
+          .then(d => {
+            if (d.status === 'success') {
+              window.location.href = '{% url "citizen_tracker" %}?ticket_id=' + d.ticket_id;
+            } else {
+              alert(d.message || 'Something went wrong.');
+              if (btn) btn.disabled = false;
+            }
+          });
+        }
+      } else {
+        alert(data.message || 'Something went wrong.');
+        if (btn) btn.disabled = false;
+      }
+    })
+    .catch(err => {
+      alert('Network error. Please try again.');
+      if (btn) btn.disabled = false;
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FixMyCity{% endblock %}</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = { 
+      theme: { 
+        extend: {
+          colors: {
+            brand: { 500: '#3b82f6', 600: '#2563eb' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Basic Styles -->
+  <style>
+    body { font-family: sans-serif; background-color: #111827; color: #f3f4f6; }
+    
+    /* Basic Card */
+    .simple-card { background-color: #1f2937; border-radius: 8px; border: 1px solid #374151; padding: 16px; }
+    
+    /* Basic Input Focus */
+    .simple-input { background-color: #374151; border: 1px solid #4b5563; color: white; border-radius: 4px; padding: 8px; }
+    .simple-input:focus { border-color: #3b82f6; outline: none; }
+    
+    /* Sidebar Active Nav Link */
+    .nav-btn.active { background-color: #374151; color: #60a5fa; font-weight: bold; }
+    
+    .pb-safe { padding-bottom: 85px; }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen {% block body_class %}{% endblock %}">
+
+  <!-- Django Messages (Toast) -->
+  {% if messages %}
+    <div class="fixed top-4 right-4 z-50 space-y-2">
+      {% for message in messages %}
+        <div class="p-4 rounded-lg shadow-lg text-sm text-white font-bold opacity-90 transition-opacity duration-300
+          {% if message.tags == 'error' %}bg-red-600
+          {% elif message.tags == 'success' %}bg-green-600
+          {% else %}bg-blue-600{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

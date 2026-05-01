@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Triage Queue — FixMyCity{% endblock %}
+
+{% block content %}
+  <!-- Top Header Navigation -->
+  <nav class="sticky top-0 z-40 bg-gray-800 text-white bg-gray-900/80  border-b border-gray-200 border-white/5 transition-colors duration-300">
+    <div class="px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gray-900 bg-gray-800 text-white text-white text-white flex items-center justify-center font-bold text-xs shadow-sm">
+          {{ user.first_name|make_list|first }}{{ user.last_name|make_list|first }}
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-tight leading-tight">{{ user.first_name }} {{ user.last_name }}</h1>
+          <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Triage Officer</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-4">
+        <a href="{% url 'officer_active_work' %}" class="hidden sm:flex text-xs font-bold text-gray-500 hover:text-white hover:text-white uppercase tracking-widest transition-colors">Metrics</a>
+        <a href="{% url 'password_change' %}" class="text-xs font-bold text-gray-500 hover:text-gray-400 uppercase tracking-widest transition-colors mr-3">Security</a>
+        <a href="{% url 'logout' %}" class="text-xs font-bold text-red-500 hover:text-red-600 hover:text-red-400 uppercase tracking-widest transition-colors">Sign Out</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+    <!-- Desktop Sidebar -->
+    <div class="hidden lg:flex lg:col-span-3 flex-col space-y-6">
+      <div class="bg-red-50 bg-red-500/10 border border-red-100 border-red-500/20 rounded-3xl p-6 text-red-900 text-red-100">
+        <h2 class="font-extrabold text-3xl tracking-tight mb-1">{{ pending_count }}</h2>
+        <p class="text-xs font-bold uppercase tracking-wider opacity-80">Pending Triage</p>
+      </div>
+
+      <nav class="space-y-2">
+        <a href="{% url 'officer_triage' %}" class="nav-btn active w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-semibold transition-colors">
+          <div class="flex items-center gap-3">
+            Priorities
+          </div>
+          <span class="bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ pending_count }}</span>
+        </a>
+        <a href="{% url 'officer_active_work' %}" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium hover:bg-gray-100 hover:bg-gray-800 transition-colors text-gray-600 text-gray-400">
+          <span class="text-lg">📊</span> Department Tracker
+        </a>
+
+      </nav>
+
+      <div class="mt-auto pt-8">
+        <form method="GET" class="bg-gray-800 text-white bg-gray-800 rounded-2xl p-5 border border-gray-100 border-white/5 simple-card">
+          <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Filter by Ward</h3>
+          <input type="text" name="ward" placeholder="e.g. Kozhikode" value="{{ current_ward }}" class="w-full bg-gray-50 bg-gray-900 border border-gray-200 border-white/10 rounded-xl px-3 py-2 text-sm outline-none transition-colors focus:border-brand-500">
+          <button type="submit" class="mt-3 w-full bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold py-2 rounded-lg transition-colors">Apply Filter</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="lg:col-span-9">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-4 border-b border-gray-200 border-white/10">
+        <div>
+          <h2 class="text-2xl font-extrabold tracking-tight mb-1">Incoming Queue</h2>
+          <p class="text-sm text-gray-500 text-gray-400 font-medium">Sorted by Gemini hazard scores.</p>
+        </div>
+      </div>
+
+      <!-- Ticket Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        {% for ticket in tickets %}
+        <a href="{% url 'officer_ticket_detail' ticket.id %}" class="bg-gray-800 text-white bg-gray-800 border border-gray-100 border-white/5 rounded-3xl overflow-hidden simple-card flex flex-col h-full relative cursor-pointer group {% if ticket.priority_score <= 2 %}opacity-75{% endif %}">
+
+          <!-- Priority Score Badge -->
+          <div class="absolute top-4 right-4 {% if ticket.priority_score >= 8 %}bg-red-500 shadow-red-500/40{% elif ticket.priority_score >= 5 %}bg-amber-500 shadow-amber-500/40{% else %}bg-gray-300 bg-surface-700{% endif %} text-white w-9 h-9 flex justify-center items-center rounded-2xl shadow-lg z-10 font-black text-sm">
+            {{ ticket.priority_score }}
+          </div>
+
+          <!-- Photo -->
+          <div class="h-32 bg-gray-200 bg-gray-700 relative overflow-hidden group-hover:opacity-90 transition-opacity flex justify-center items-center text-4xl">
+            {% if ticket.issue_photo %}
+            <img src="{{ ticket.issue_photo.url }}" alt="Photo" class="w-full h-full object-cover">
+            {% else %}
+            🕳️
+            {% endif %}
+          </div>
+
+          <div class="p-5 flex-1 flex flex-col">
+            <div class="flex gap-2 items-center mb-2">
+              {% if ticket.is_public_hazard %}
+              <span class="bg-red-50 bg-red-500/10 text-red-600 text-red-400 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-widest border border-red-100 border-red-500/20">Critical Hazard</span>
+              {% else %}
+              <span class="bg-gray-100 bg-gray-700 text-gray-600 text-gray-300 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-widest border border-gray-200 border-white/10">{{ ticket.get_category_display }}</span>
+              {% endif %}
+            </div>
+
+            <h3 class="font-bold text-base leading-tight mb-2 truncate group-hover:text-brand-500 transition-colors">{{ ticket.title }}</h3>
+            <p class="text-xs text-gray-500 text-gray-400 font-medium line-clamp-2 mb-4">"{{ ticket.description|truncatewords:20 }}"</p>
+
+            <div class="mt-auto pt-4 border-t border-gray-100 border-white/5 flex items-center justify-between text-xs text-gray-400 text-gray-500 font-semibold">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {{ ticket.created_at|timesince }} ago
+              </span>
+              <span>{{ ticket.ward_name|default:"Unknown" }}</span>
+            </div>
+          </div>
+        </a>
+        {% empty %}
+        <div class="col-span-full text-center py-16 text-gray-400">
+          <p class="text-lg font-bold mb-2">Queue is empty!</p>
+          <p class="text-sm">No new tickets require triage right now.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    
+    if (lbl) lbl.style.display = 'none';
+    if (pill) {
+      pill.style.padding = '0';
+      pill.style.background = 'none';
+      pill.style.border = 'none';
+      pill.style.boxShadow = 'none';
+    }
+  });
+</script>
+{% endblock %}

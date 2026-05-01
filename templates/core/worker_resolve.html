@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resolve Job — FixMyCity{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-area { transition: border-color 0.2s, background-color 0.2s; }
+  .upload-area:active { transform: scale(0.98); }
+  .slider-track { height: 56px; border-radius: 28px; position: relative; overflow: hidden; }
+  .slider-thumb { width: 48px; height: 48px; position: absolute; left: 4px; top: 4px; border-radius: 24px; transition: transform 0.1s; display: flex; align-items: center; justify-content: center; cursor: grab; }
+  .slider-thumb:active { cursor: grabbing; }
+  .pb-safe { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+</style>
+{% endblock %}
+
+{% block content %}
+  <nav class="sticky top-0 z-40 bg-gray-800 text-white bg-gray-900/80  border-b border-gray-200 border-white/5 transition-colors duration-300">
+    <div class="px-4 h-16 flex items-center justify-between max-w-lg mx-auto">
+      <div class="flex items-center gap-3">
+        <a href="{% url 'worker_tasks' %}" class="p-2 -ml-2 rounded-full hover:bg-gray-100 hover:bg-gray-700 transition-colors text-gray-500">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        </a>
+        <h1 class="text-sm font-bold tracking-tight leading-tight">Job #{{ ticket.id }}</h1>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-lg mx-auto px-4 py-6 pb-safe">
+
+    <div class="flex justify-between items-start mb-6">
+      <div>
+        <h2 class="text-2xl font-extrabold tracking-tight mb-1">{{ ticket.title }}</h2>
+        <p class="text-sm text-gray-500 font-semibold">📍 {{ ticket.landmark_note|default:ticket.ward_name }}</p>
+      </div>
+      <a href="https://maps.google.com/?q={{ ticket.latitude }},{{ ticket.longitude }}" target="_blank" class="w-12 h-12 bg-gray-100 bg-gray-800 rounded-full flex items-center justify-center text-gray-500 shadow-sm border border-gray-200 border-white/5 active:scale-95 transition-transform text-lg">
+        🗺️
+      </a>
+    </div>
+
+    <!-- Report Details -->
+    <div class="bg-amber-50 bg-amber-500/10 border border-amber-100 border-amber-500/20 rounded-2xl p-4 mb-6 simple-card">
+      <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div>
+          <h3 class="text-xs font-bold text-amber-900 text-amber-400 uppercase tracking-widest mb-1">Report Details</h3>
+          <p class="text-sm font-medium text-amber-800 text-amber-500/80">"{{ ticket.ai_formal_summary|default:ticket.description }}"</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera Upload -->
+    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pl-1">Resolution Evidence</h3>
+
+    <form method="POST" action="{% url 'worker_resolve' ticket.id %}" enctype="multipart/form-data" id="resolveForm">
+      {% csrf_token %}
+      <div class="bg-gray-800 text-white bg-gray-800 border border-gray-100 border-white/5 rounded-3xl p-4 simple-card mb-4 min-h-[300px] flex flex-col items-center justify-center relative overflow-hidden" id="photoCard">
+        <div class="upload-area w-full h-full flex flex-col items-center justify-center cursor-pointer" onclick="document.getElementById('cameraInput').click()" id="uploadPrompt">
+          <input type="file" id="cameraInput" name="resolution_photo" class="hidden" accept="image/*" capture="environment" onchange="handlePhoto(event)">
+          <div class="w-20 h-20 bg-brand-50 bg-brand-500/10 text-brand-500 rounded-full flex items-center justify-center mb-4 shadow-sm border-[4px] border-white border-surface-900 shadow-brand-500/20">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <h3 class="font-bold text-lg text-white text-white">Snap Photo</h3>
+          <p class="text-xs text-gray-400 mt-1">Take a picture of the fixed issue</p>
+        </div>
+        <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" />
+        <div id="processingOverlay" class="absolute inset-0 bg-gray-800 text-white bg-gray-800/90  flex flex-col items-center justify-center hidden">
+          <div id="photoSphere"></div>
+        </div>
+      </div>
+
+      <!-- Worker Note -->
+      <textarea name="worker_note" placeholder="Quick note (e.g., Filled with cold asphalt)" class="w-full bg-gray-800 text-white bg-gray-800 border border-gray-100 border-white/5 rounded-2xl px-4 py-3 text-sm simple-input placeholder-gray-400 resize-none h-20 mb-4"></textarea>
+
+      <div class="flex items-center gap-2 mb-8 px-1">
+        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p class="text-xs font-medium text-gray-500 text-gray-400">GPS location will be automatically verified on upload.</p>
+      </div>
+    </form>
+  </div>
+
+  <!-- Slide to Resolve -->
+  <nav class="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+    <div id="resolveContainer" class="bg-gray-100 bg-gray-700 border border-gray-200 border-white/10 shadow-xl rounded-full slider-track opacity-50 pointer-events-none transition-opacity">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span class="text-xs font-bold text-gray-500 text-gray-400 uppercase tracking-widest select-none">Slide to Resolve</span>
+      </div>
+      <div id="sliderThumb" class="slider-thumb bg-emerald-500 text-white shadow-md shadow-emerald-500/40">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+      </div>
+    </div>
+  </nav>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+  let photoSphereId;
+
+  function handlePhoto(event) {
+    const file = event.target.files[0];
+    if (file) {
+      document.getElementById('uploadPrompt').classList.add('hidden');
+      document.getElementById('processingOverlay').classList.remove('hidden');
+      
+      photoSphereId = 
+      
+      setTimeout(() => {
+        
+        setTimeout(() => {
+          document.getElementById('processingOverlay').classList.add('hidden');
+          const preview = document.getElementById('imagePreview');
+          preview.src = URL.createObjectURL(file);
+          preview.classList.remove('hidden');
+          const resolveContainer = document.getElementById('resolveContainer');
+          resolveContainer.classList.remove('opacity-50', 'pointer-events-none');
+        }, 800);
+      }, 1500);
+    }
+  }
+
+  // Slide to Resolve Logic
+  const sliderThumb = document.getElementById('sliderThumb');
+  const container = document.getElementById('resolveContainer');
+  let isDragging = false, startX = 0;
+
+  sliderThumb.addEventListener('mousedown', (e) => { isDragging = true; startX = e.clientX; });
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleEnd);
+  sliderThumb.addEventListener('touchstart', (e) => { isDragging = true; startX = e.touches[0].clientX; });
+  document.addEventListener('touchmove', (e) => { if (isDragging) handleMove(e.touches[0]); }, { passive: false });
+  document.addEventListener('touchend', handleEnd);
+
+  function handleMove(e) {
+    if (!isDragging) return;
+    const maxDist = container.offsetWidth - 56;
+    let dist = e.clientX - startX;
+    if (dist < 0) dist = 0;
+    if (dist > maxDist) dist = maxDist;
+    sliderThumb.style.transform = `translateX(${dist}px)`;
+    if (dist > maxDist * 0.9) { isDragging = false; sliderThumb.style.transform = `translateX(${maxDist}px)`; completeResolve(); }
+  }
+  function handleEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    sliderThumb.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    sliderThumb.style.transform = 'translateX(0px)';
+    setTimeout(() => { sliderThumb.style.transition = 'transform 0.1s'; }, 300);
+  }
+  function completeResolve() {
+    container.innerHTML = '<div class="absolute inset-0 flex items-center justify-center"><div class="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div></div>';
+    setTimeout(() => { document.getElementById('resolveForm').submit(); }, 800);
+  }
+</script>
+{% endblock %}

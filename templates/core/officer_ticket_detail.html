@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ticket #{{ ticket.id }} — FixMyCity{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block content %}
+  <nav class="bg-gray-800 border-b border-gray-700">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
+      <a href="{% url 'officer_triage' %}" class="text-gray-400 hover:text-white">← Back</a>
+      <h1 class="text-sm font-bold text-white">Ticket #{{ ticket.id }}</h1>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex flex-col lg:flex-row gap-6">
+
+      <!-- Left: Photo & Location -->
+      <div class="lg:w-5/12 space-y-6">
+        <div class="simple-card relative">
+          {% if ticket.priority_score >= 8 %}
+          <div class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold uppercase z-10">
+            Critical
+          </div>
+          {% endif %}
+          <div class="h-64 bg-gray-700 rounded overflow-hidden flex justify-center items-center text-6xl">
+            {% if ticket.issue_photo %}
+            <img src="{{ ticket.issue_photo.url }}" alt="Issue" class="w-full h-full object-cover">
+            {% else %}🕳️{% endif %}
+          </div>
+        </div>
+
+        <!-- Mini Map -->
+        <div class="simple-card p-0 overflow-hidden">
+          <div class="h-32 relative">
+            <div id="map" class="absolute inset-0"></div>
+          </div>
+          <div class="p-4">
+            <h3 class="font-bold text-sm text-gray-400 uppercase mb-3">Location Data</h3>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div><p class="text-xs text-gray-500">Coordinates</p><p class="font-bold text-white">{{ ticket.latitude|floatformat:4 }}, {{ ticket.longitude|floatformat:4 }}</p></div>
+              <div><p class="text-xs text-gray-500">Landmark</p><p class="font-bold text-white">{{ ticket.landmark_note|default:"—" }}</p></div>
+              <div><p class="text-xs text-gray-500">Ward</p><p class="font-bold text-white">{{ ticket.ward_name|default:"Unknown" }}</p></div>
+              <div><p class="text-xs text-gray-500">Panchayat</p><p class="font-bold text-white">{{ ticket.panchayat_name|default:"—" }}</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Details & Actions -->
+      <div class="lg:w-7/12 space-y-6">
+        <div class="simple-card">
+          <h2 class="text-2xl font-bold text-white mb-6">{{ ticket.title }}</h2>
+
+          <!-- Triage Report -->
+          <div class="bg-gray-700 rounded-lg p-5 mb-6 border border-gray-600">
+            <h3 class="font-bold text-sm text-green-400 uppercase mb-2">Triage Report</h3>
+            <p class="text-sm text-gray-300 mb-4">"{{ ticket.description }}"</p>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <p class="text-xs text-gray-500 uppercase font-bold">Category</p>
+                <p class="text-sm font-bold text-white mt-1">{{ ticket.get_category_display }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 uppercase font-bold">Priority Score</p>
+                <p class="text-lg font-bold mt-1 {% if ticket.priority_score >= 8 %}text-red-400{% else %}text-amber-400{% endif %}">{{ ticket.priority_score }} <span class="text-xs text-gray-500">/ 10</span></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reporter Info -->
+          <div class="flex items-center gap-4 p-4 bg-gray-700 rounded-lg border border-gray-600 mb-6">
+            <div class="w-12 h-12 bg-green-600 text-white rounded-lg flex items-center justify-center font-bold">
+              {{ ticket.reporter.first_name|make_list|first }}{{ ticket.reporter.last_name|make_list|first }}
+            </div>
+            <div>
+              <h4 class="font-bold text-white">{{ ticket.reporter.first_name }} {{ ticket.reporter.last_name }}</h4>
+              <p class="text-xs text-gray-400">{{ ticket.reporter.civic_points }} Civic Points</p>
+            </div>
+          </div>
+
+          <!-- Action Form -->
+          <form method="POST" action="{% url 'validate_ticket' ticket.id %}">
+            {% csrf_token %}
+            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Assign to Field Worker</label>
+            <select name="assigned_worker" class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white mb-4">
+              {% for worker in workers %}
+              <option value="{{ worker.id }}">{{ worker.first_name }} {{ worker.last_name }}</option>
+              {% endfor %}
+            </select>
+
+            <div class="flex gap-3">
+              <button type="submit" name="action" value="validate" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded py-3 flex justify-center items-center gap-2">
+                ✓ Validate & Assign
+              </button>
+              <button type="submit" name="action" value="reject" class="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded">
+                Reject
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.addEventListener('load', function() {
+    var lat = {{ ticket.latitude|default:"10.5236" }};
+    var lng = {{ ticket.longitude|default:"76.2144" }};
+    var map = L.map('map', { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView([lat, lng], 16);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+    }).addTo(map);
+    L.marker([lat, lng]).addTo(map);
+  });
+</script>
+{% endblock %}
