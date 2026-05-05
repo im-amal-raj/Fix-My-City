@@ -40,7 +40,13 @@
       
       <div>
         <label class="block text-sm font-bold text-gray-300 mb-1">Password</label>
-        <input type="password" name="password" required class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+        <input type="password" name="password" id="password" required class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+      </div>
+
+      <div>
+        <label class="block text-sm font-bold text-gray-300 mb-1">Confirm Password</label>
+        <input type="password" name="password2" id="password2" required class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+        <p id="pw-mismatch" class="text-red-400 text-xs mt-1 hidden">Passwords do not match.</p>
       </div>
       
       <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded mt-2">
@@ -53,4 +59,22 @@
     </div>
   </div>
 </div>
+
+<script>
+  const pw = document.getElementById('password');
+  const pw2 = document.getElementById('password2');
+  const msg = document.getElementById('pw-mismatch');
+
+  pw2.addEventListener('input', () => {
+    msg.classList.toggle('hidden', pw.value === pw2.value);
+  });
+
+  document.querySelector('form').addEventListener('submit', (e) => {
+    if (pw.value !== pw2.value) {
+      e.preventDefault();
+      msg.classList.remove('hidden');
+      pw2.focus();
+    }
+  });
+</script>
 {% endblock %}
