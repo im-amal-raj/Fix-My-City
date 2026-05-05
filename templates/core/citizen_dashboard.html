@@ -65,8 +65,8 @@
 
           <div>
             <div class="flex justify-between items-start mb-2">
-              <h3 class="font-bold text-lg text-white">{{ ticket.title }}</h3>
-              <span class="text-xs font-bold px-2 py-1 rounded bg-gray-700 text-gray-300">{{ ticket.get_status_display }}</span>
+              <a href="{% url 'ticket_detail_public' ticket.id %}" class="font-bold text-lg text-white hover:text-blue-400">{{ ticket.title }}</a>
+              <span class="text-xs font-bold px-2 py-1 rounded {% if ticket.status == 'RESOLVED' %}bg-emerald-600 text-white{% else %}bg-gray-700 text-gray-300{% endif %}">{{ ticket.get_status_display }}</span>
             </div>
             
             <p class="text-sm text-gray-400 mb-4">{{ ticket.ward_name }} · {{ ticket.created_at|date:"M d, Y" }}</p>
@@ -75,9 +75,23 @@
               <p>{{ ticket.description }}</p>
             </div>
 
+            {% if ticket.status == 'RESOLVED' and ticket.resolution_photo %}
+            <div class="bg-emerald-900/30 border border-emerald-700/40 rounded p-3 mb-4 flex items-center gap-3">
+              <div class="w-12 h-12 rounded overflow-hidden shrink-0">
+                <img src="{{ ticket.resolution_photo.url }}" alt="Resolved" class="w-full h-full object-cover">
+              </div>
+              <div>
+                <p class="text-xs font-bold text-emerald-400">Resolved by city team</p>
+                {% if ticket.worker_note %}
+                <p class="text-xs text-gray-400 mt-0.5 italic">"{{ ticket.worker_note|truncatewords:15 }}"</p>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+
             <div class="flex items-center justify-between text-sm text-gray-400">
               <span>{{ ticket.followers.count }} Following</span>
-              <button class="text-blue-400 hover:text-blue-300">Follow (+1 pt)</button>
+              <a href="{% url 'ticket_detail_public' ticket.id %}" class="text-blue-400 hover:text-blue-300 font-bold">View Details →</a>
             </div>
           </div>
         </div>
