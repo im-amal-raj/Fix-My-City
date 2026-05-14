@@ -1,7 +1,7 @@
 # FixMyCity 🏙️
 
-**Live Demo:** [Insert PythonAnywhere Live Link Here]
-**GitHub Repository:** [Insert GitHub Repository Link Here]
+**Live Demo:** [Click Here](https://fixmycity.pythonanywhere.com/)
+**GitHub Repository:** [Click Here](https://github.com/im-amal-raj/Fix-My-City)
 
 FixMyCity is a role-based civic issue tracking platform built with Django. It bridges the gap between citizens and local government by allowing residents to report infrastructure issues (like potholes, broken streetlights, or water leaks), and providing a streamlined dashboard for city officials to triage and assign those tasks to field workers.
 
